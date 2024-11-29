@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Grey Wolf Optimizer (GWO) for MaxProfit</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+
+    <body class="bg-gray-100">
+        <div class="flex flex-col gap-4 mx-auto p-6">
+            <h1 class="text-2xl font-bold text-center mb-6">Grey Wolf Optimizer for MaxProfit</h1>
+
+            <div class="flex justify-center mb-4">
+                <button id="startButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Start GWO Optimization
+                </button>
+            </div>
+
+            <div class="flex justify-center mb-6">
+                <div id="gbestFitness" class="text-lg font-semibold text-gray-800 mr-4">
+                    Best Fitness:
+                </div>
+                <div id="gbestPosition" class="text-lg font-semibold text-gray-800">
+                    Best Position:
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div>
+                    <h2 class="text-xl font-semibold text-center mb-4">Wolf Population</h2>
+                    <table class="min-w-full bg-white rounded-lg shadow-lg" style="height: 200px;">
+                        <thead>
+                            <tr>
+                                <th class="border-b p-2 text-left">Iteration #</th>
+                                <th class="border-b p-2 text-left">Fitness</th>
+                                <th class="border-b p-2 text-left">Alpha Position</th>
+                                <th class="border-b p-2 text-left">Beta Position</th>
+                                <th class="border-b p-2 text-left">Delta Position</th>
+                            </tr>
+                        </thead>
+                        <tbody id="particleTableBody" class="text-gray-700"></tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-semibold text-center mb-4">Fitness Over Iterations</h2>
+                    <canvas id="fitnessProgressChart" width="50" height="30"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <script type="module">
+            import { performanceFunction } from "./fitness.js";
+            import { GreyWolfOptimizer } from "./GreyWolfOptimizer.js";
+
+            // Element References
+            const tableBody = document.getElementById("particleTableBody");
+            const gbestFitnessElement = document.getElementById("gbestFitness");
+            const gbestPositionElement = document.getElementById("gbestPosition");
+            const startButton = document.getElementById("startButton");
+            const fitnessProgressChartCtx = document.getElementById("fitnessProgressChart").getContext("2d");
+
+            // Parameters
+            const n_wolves = 10;
+            const maxIterations = 10;
+            const gwo = new GreyWolfOptimizer(n_wolves, maxIterations, 4);
+
+            let currentIteration = 0;
+
+            let fitnessProgressChart = new Chart(fitnessProgressChartCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Fitness Over Iterations',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+
+            startButton.addEventListener("click", () => {
+                if (currentIteration === 0) {
+                    gwo.initializePopulation();
+                    gwo.evaluateFitness();
+
+                    startButton.disabled = true;
+                }
+
+                let interval = setInterval(() => {
+                    if (currentIteration < maxIterations) {
+                        gwo.population = gwo.population.map((individual) => {
+                            return gwo.updatePosition(individual, currentIteration, maxIterations);
+                        });
+                        gwo.evaluateFitness();
+
+                        // Display best fitness and position
+                        gbestFitnessElement.textContent = `Best Fitness: ${gwo.bestFitness.toFixed(2)}`;
+                        gbestPositionElement.textContent = `Best Position: (${gwo.alpha.join(', ')})`;
+
+                        const alpha = gwo.alpha;
+                        const beta = gwo.beta;
+                        const delta = gwo.delta;
+
+                        // Insert Alpha, Beta, and Delta into the table
+                        const row = tableBody.insertRow();
+                        row.innerHTML = `
+                            <td class="border-b p-2">${currentIteration + 1}</td>
+                            <td class="border-b p-2">${performanceFunction(...alpha).toFixed(2)}</td>
+                            <td class="border-b p-2">(${alpha.join(', ')})</td>
+                            <td class="border-b p-2">(${beta.join(', ')})</td>
+                            <td class="border-b p-2">(${delta.join(', ')})</td>
+                        `;
+
+                        fitnessProgressChart.data.labels.push(currentIteration);
+                        fitnessProgressChart.data.datasets[0].data.push(performanceFunction(...alpha).toFixed(2));
+                        fitnessProgressChart.update();
+
+                        currentIteration++;
+                    } else {
+                        clearInterval(interval);
+                        startButton.disabled = false;
+                    }
+                }, 500);
+            });
+        </script>
+    </body>
+
+</html>
